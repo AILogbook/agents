@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 工具集</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=4">
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span>PDF 工具集</span>
+            </div>
+        </div>
+        <ul class="nav-list">
+            <li class="nav-item active" data-panel="split-odd-even">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                </svg>
+                <span>奇偶页拆分</span>
+            </li>
+            <li class="nav-item" data-panel="a3-to-a4">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/>
+                </svg>
+                <span>A3 转 A4</span>
+            </li>
+            <li class="nav-item disabled">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                <span>更多服务 (即将推出)</span>
+            </li>
+        </ul>
+    </nav>
+
+    <main class="content">
+        <!-- 奇偶页拆分面板 -->
+        <section id="panel-split-odd-even" class="panel active">
+            <div class="panel-header">
+                <h1>PDF 奇偶页拆分</h1>
+                <p class="subtitle">上传 PDF 文件，将其按奇数页和偶数页拆分为两个独立文件</p>
+            </div>
+
+            <div class="card upload-card" id="uploadCard">
+                <div class="upload-area" id="uploadArea">
+                    <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <p class="upload-text">拖拽 PDF 文件到此处，或 <label for="fileInput" class="link">点击选择文件</label></p>
+                    <input type="file" id="fileInput" accept=".pdf" hidden>
+                </div>
+                <div class="file-info" id="fileInfo" style="display:none">
+                    <div class="file-badge">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        <span id="fileName"></span>
+                        <button class="btn-icon" id="removeFile" title="移除文件">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card options-card">
+                <h3>页面范围设置</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="startPage">起始页</label>
+                        <input type="number" id="startPage" min="1" value="1" placeholder="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="endPage">结束页</label>
+                        <input type="number" id="endPage" min="0" value="0" placeholder="0 表示最后一页">
+                    </div>
+                </div>
+                <p class="hint">结束页填 0 表示到文档最后一页</p>
+            </div>
+
+            <button class="btn-primary" id="processBtn" disabled>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                </svg>
+                <span>开始处理</span>
+            </button>
+
+            <div class="progress-bar" id="progressBar" style="display:none">
+                <div class="progress-track"><div class="progress-fill"></div></div>
+                <span class="progress-text">处理中...</span>
+            </div>
+
+            <div class="card result-card" id="resultCard" style="display:none">
+                <h3>处理结果</h3>
+                <div class="result-meta" id="resultMeta"></div>
+                <div class="result-files" id="resultFiles"></div>
+            </div>
+
+            <div class="card error-card" id="errorCard" style="display:none">
+                <div class="error-content">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    <span id="errorText"></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- A3 转 A4 面板 -->
+        <section id="panel-a3-to-a4" class="panel">
+            <div class="panel-header">
+                <h1>A3 转 A4 切分</h1>
+                <p class="subtitle">将 A3 尺寸的 PDF 页面沿中线切分为两个 A4 页面</p>
+            </div>
+
+            <div class="card upload-card">
+                <div class="upload-area" id="a3UploadArea">
+                    <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <p class="upload-text">拖拽 PDF 文件到此处，或 <label for="a3FileInput" class="link">点击选择文件</label></p>
+                    <input type="file" id="a3FileInput" accept=".pdf" hidden>
+                </div>
+                <div class="file-info" id="a3FileInfo" style="display:none">
+                    <div class="file-badge">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        <span id="a3FileName"></span>
+                        <button class="btn-icon" id="a3RemoveFile" title="移除文件">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card options-card">
+                <h3>切分设置</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="splitDirection">切分方向</label>
+                        <select id="splitDirection" class="form-select">
+                            <option value="horizontal">水平切分（左右分页）</option>
+                            <option value="vertical">垂直切分（上下分页）</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="pageOrder">页面顺序</label>
+                        <select id="pageOrder" class="form-select">
+                            <option value="left-right">先左后右</option>
+                            <option value="right-left">先右后左</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row" style="margin-top:12px">
+                    <div class="form-group">
+                        <label for="a3StartPage">起始页</label>
+                        <input type="number" id="a3StartPage" min="1" value="1" placeholder="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="a3EndPage">结束页</label>
+                        <input type="number" id="a3EndPage" min="0" value="0" placeholder="0 表示最后一页">
+                    </div>
+                </div>
+                <p class="hint">结束页填 0 表示到文档最后一页；水平切分适用于横向 A3，垂直切分适用于纵向 A3</p>
+            </div>
+
+            <button class="btn-primary" id="a3ProcessBtn" disabled>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                </svg>
+                <span>开始处理</span>
+            </button>
+
+            <div class="progress-bar" id="a3ProgressBar" style="display:none">
+                <div class="progress-track"><div class="progress-fill"></div></div>
+                <span class="progress-text">处理中...</span>
+            </div>
+
+            <div class="card result-card" id="a3ResultCard" style="display:none">
+                <h3>处理结果</h3>
+                <div class="result-meta" id="a3ResultMeta"></div>
+                <div class="result-files" id="a3ResultFiles"></div>
+            </div>
+
+            <div class="card error-card" id="a3ErrorCard" style="display:none">
+                <div class="error-content">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    <span id="a3ErrorText"></span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/js/app.js?v=4"></script>
+</body>
+</html>
