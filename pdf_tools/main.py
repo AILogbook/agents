@@ -1,6 +1,7 @@
 import logging
 import logging.handlers
 import re
+import time
 import uuid
 import shutil
 from pathlib import Path
@@ -31,6 +32,22 @@ logger.setLevel(logging.INFO)
 logger.addHandler(_file_handler)
 logger.addHandler(_console_handler)
 
+access_logger = logging.getLogger("pdf-tools.access")
+access_logger.setLevel(logging.INFO)
+_access_file_handler = logging.handlers.TimedRotatingFileHandler(
+    LOG_DIR / "access.log", when="midnight", backupCount=30, encoding="utf-8",
+)
+_access_file_handler.setFormatter(_log_fmt)
+access_logger.addHandler(_access_file_handler)
+access_logger.addHandler(_console_handler)
+
+
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.headers.get("x-real-ip", request.client.host)
+
 
 def sanitize_filename(raw_name: str) -> str:
     """Strip directory components and replace unsafe characters."""
@@ -47,14 +64,22 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 
-class NoCacheStaticMiddleware(BaseHTTPMiddleware):
+class RequestMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        start = time.monotonic()
         response: Response = await call_next(request)
+        elapsed_ms = (time.monotonic() - start) * 1000
+
         if request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+
+        client_ip = get_client_ip(request)
+        access_logger.info('%s "%s %s" %d %.0fms',
+                           client_ip, request.method, request.url.path,
+                           response.status_code, elapsed_ms)
         return response
 
-app.add_middleware(NoCacheStaticMiddleware)
+app.add_middleware(RequestMiddleware)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -66,12 +91,15 @@ async def index(request: Request):
 
 @app.post("/api/pdf/split-odd-even")
 async def split_odd_even(
+    request: Request,
     file: UploadFile = File(...),
     start_page: int = Form(1),
     end_page: int = Form(0),
 ):
+    client_ip = get_client_ip(request)
+
     if not file.filename.lower().endswith(".pdf"):
-        logger.warning("奇偶页拆分: 拒绝非 PDF 文件 %s", file.filename)
+        logger.warning("[%s] 奇偶页拆分: 拒绝非 PDF 文件 %s", client_ip, file.filename)
         return JSONResponse(status_code=400, content={"error": "请上传 PDF 文件"})
 
     task_id = uuid.uuid4().hex[:12]
@@ -82,8 +110,8 @@ async def split_odd_even(
         shutil.copyfileobj(file.file, f)
 
     file_size = upload_path.stat().st_size
-    logger.info("奇偶页拆分: [%s] 上传 %s (%.2f MB), 页码 %d-%d",
-                task_id, safe_name, file_size / 1048576, start_page, end_page)
+    logger.info("[%s] 奇偶页拆分: [%s] 上传 %s (%.2f MB), 页码 %d-%d",
+                client_ip, task_id, safe_name, file_size / 1048576, start_page, end_page)
 
     try:
         reader = PdfReader(str(upload_path))
@@ -94,7 +122,7 @@ async def split_odd_even(
         if end_page <= 0 or end_page > total_pages:
             end_page = total_pages
         if start_page > end_page:
-            logger.warning("奇偶页拆分: [%s] 无效页码范围 %d-%d", task_id, start_page, end_page)
+            logger.warning("[%s] 奇偶页拆分: [%s] 无效页码范围 %d-%d", client_ip, task_id, start_page, end_page)
             return JSONResponse(status_code=400, content={"error": f"起始页({start_page})不能大于结束页({end_page})"})
 
         odd_writer = PdfWriter()
@@ -134,8 +162,8 @@ async def split_odd_even(
                 "page_count": len(even_writer.pages),
             })
 
-        logger.info("奇偶页拆分: [%s] 完成, 共 %d 页, 范围 %d-%d, 生成 %d 个文件",
-                    task_id, total_pages, start_page, end_page, len(result_files))
+        logger.info("[%s] 奇偶页拆分: [%s] 完成, 共 %d 页, 范围 %d-%d, 生成 %d 个文件",
+                    client_ip, task_id, total_pages, start_page, end_page, len(result_files))
 
         return {
             "success": True,
@@ -145,12 +173,13 @@ async def split_odd_even(
         }
 
     except Exception as e:
-        logger.exception("奇偶页拆分: [%s] 处理失败", task_id)
+        logger.exception("[%s] 奇偶页拆分: [%s] 处理失败", client_ip, task_id)
         return JSONResponse(status_code=500, content={"error": f"处理失败: {str(e)}"})
 
 
 @app.post("/api/pdf/a3-to-a4")
 async def a3_to_a4(
+    request: Request,
     file: UploadFile = File(...),
     split_direction: str = Form("horizontal"),
     page_order: str = Form("left-right"),
@@ -158,8 +187,10 @@ async def a3_to_a4(
     end_page: int = Form(0),
 ):
     """将 A3 页面沿中线切分为两个 A4 页面"""
+    client_ip = get_client_ip(request)
+
     if not file.filename.lower().endswith(".pdf"):
-        logger.warning("A3转A4: 拒绝非 PDF 文件 %s", file.filename)
+        logger.warning("[%s] A3转A4: 拒绝非 PDF 文件 %s", client_ip, file.filename)
         return JSONResponse(status_code=400, content={"error": "请上传 PDF 文件"})
 
     task_id = uuid.uuid4().hex[:12]
@@ -170,8 +201,8 @@ async def a3_to_a4(
         shutil.copyfileobj(file.file, f)
 
     file_size = upload_path.stat().st_size
-    logger.info("A3转A4: [%s] 上传 %s (%.2f MB), 方向=%s, 顺序=%s, 页码 %d-%d",
-                task_id, safe_name, file_size / 1048576,
+    logger.info("[%s] A3转A4: [%s] 上传 %s (%.2f MB), 方向=%s, 顺序=%s, 页码 %d-%d",
+                client_ip, task_id, safe_name, file_size / 1048576,
                 split_direction, page_order, start_page, end_page)
 
     try:
@@ -183,7 +214,7 @@ async def a3_to_a4(
         if end_page <= 0 or end_page > total_pages:
             end_page = total_pages
         if start_page > end_page:
-            logger.warning("A3转A4: [%s] 无效页码范围 %d-%d", task_id, start_page, end_page)
+            logger.warning("[%s] A3转A4: [%s] 无效页码范围 %d-%d", client_ip, task_id, start_page, end_page)
             return JSONResponse(status_code=400, content={"error": f"起始页({start_page})不能大于结束页({end_page})"})
 
         writer = PdfWriter()
@@ -230,8 +261,8 @@ async def a3_to_a4(
         with open(out_path, "wb") as f:
             writer.write(f)
 
-        logger.info("A3转A4: [%s] 完成, 共 %d 页, 范围 %d-%d, 输出 %d 页",
-                    task_id, total_pages, start_page, end_page, output_page_count)
+        logger.info("[%s] A3转A4: [%s] 完成, 共 %d 页, 范围 %d-%d, 输出 %d 页",
+                    client_ip, task_id, total_pages, start_page, end_page, output_page_count)
 
         return {
             "success": True,
@@ -245,22 +276,23 @@ async def a3_to_a4(
         }
 
     except Exception as e:
-        logger.exception("A3转A4: [%s] 处理失败", task_id)
+        logger.exception("[%s] A3转A4: [%s] 处理失败", client_ip, task_id)
         return JSONResponse(status_code=500, content={"error": f"处理失败: {str(e)}"})
 
 
 @app.get("/api/pdf/download/{filename}")
-async def download_file(filename: str):
+async def download_file(request: Request, filename: str):
+    client_ip = get_client_ip(request)
     file_path = (OUTPUT_DIR / filename).resolve()
     if not file_path.is_relative_to(OUTPUT_DIR.resolve()):
-        logger.warning("下载: 路径遍历尝试 %s", filename)
+        logger.warning("[%s] 下载: 路径遍历尝试 %s", client_ip, filename)
         return JSONResponse(status_code=403, content={"error": "非法路径"})
     if not file_path.exists():
-        logger.warning("下载: 文件不存在 %s", filename)
+        logger.warning("[%s] 下载: 文件不存在 %s", client_ip, filename)
         return JSONResponse(status_code=404, content={"error": "文件不存在"})
 
     display_name = "_".join(filename.split("_")[1:])
-    logger.info("下载: %s -> %s", filename, display_name)
+    logger.info("[%s] 下载: %s -> %s", client_ip, filename, display_name)
     return FileResponse(
         path=str(file_path),
         filename=display_name,
