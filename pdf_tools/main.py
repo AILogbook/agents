@@ -74,9 +74,10 @@ class RequestMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
 
         client_ip = get_client_ip(request)
-        access_logger.info('%s "%s %s" %d %.0fms',
+        ua = request.headers.get("user-agent", "-")
+        access_logger.info('%s "%s %s" %d %.0fms "%s"',
                            client_ip, request.method, request.url.path,
-                           response.status_code, elapsed_ms)
+                           response.status_code, elapsed_ms, ua)
         return response
 
 app.add_middleware(RequestMiddleware)
