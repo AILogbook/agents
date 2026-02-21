@@ -34,6 +34,7 @@ logger.addHandler(_console_handler)
 
 access_logger = logging.getLogger("pdf-tools.access")
 access_logger.setLevel(logging.INFO)
+access_logger.propagate = False
 _access_file_handler = logging.handlers.TimedRotatingFileHandler(
     LOG_DIR / "access.log", when="midnight", backupCount=30, encoding="utf-8",
 )
