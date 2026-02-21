@@ -14,7 +14,7 @@ StandardOutput=journal
 StandardError=journal
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/root/agents/pdf_tools/uploads /root/agents/pdf_tools/outputs
+ReadWritePaths=/root/agents/pdf_tools/uploads /root/agents/pdf_tools/outputs /root/agents/pdf_tools/logs
 
 [Install]
 WantedBy=multi-user.target

@@ -3,7 +3,6 @@ import logging.handlers
 import re
 import uuid
 import shutil
-from copy import deepcopy
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, Form, Request
@@ -213,13 +212,15 @@ async def a3_to_a4(
                     second_crop = (0, half_h, width, height)
 
             for crop in (first_crop, second_crop):
-                new_page = deepcopy(page)
-                new_page.mediabox.lower_left = (crop[0], crop[1])
-                new_page.mediabox.upper_right = (crop[2], crop[3])
-                if hasattr(new_page, 'cropbox'):
-                    new_page.cropbox.lower_left = (crop[0], crop[1])
-                    new_page.cropbox.upper_right = (crop[2], crop[3])
-                writer.add_page(new_page)
+                writer.add_page(page)
+                cloned = writer.pages[-1]
+                cloned.mediabox.lower_left = (crop[0], crop[1])
+                cloned.mediabox.upper_right = (crop[2], crop[3])
+                cloned.cropbox.lower_left = (crop[0], crop[1])
+                cloned.cropbox.upper_right = (crop[2], crop[3])
+                if "/TrimBox" in cloned:
+                    cloned.trimbox.lower_left = (crop[0], crop[1])
+                    cloned.trimbox.upper_right = (crop[2], crop[3])
                 output_page_count += 1
 
         base_name = Path(safe_name).stem
