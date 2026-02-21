@@ -1,4 +1,5 @@
 import logging
+import logging.handlers
 import re
 import uuid
 import shutil
@@ -13,12 +14,23 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from PyPDF2 import PdfReader, PdfWriter
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+LOG_DIR = Path(__file__).resolve().parent / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+_log_fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+
+_file_handler = logging.handlers.TimedRotatingFileHandler(
+    LOG_DIR / "app.log", when="midnight", backupCount=30, encoding="utf-8",
 )
+_file_handler.setFormatter(_log_fmt)
+
+_console_handler = logging.StreamHandler()
+_console_handler.setFormatter(_log_fmt)
+
 logger = logging.getLogger("pdf-tools")
+logger.setLevel(logging.INFO)
+logger.addHandler(_file_handler)
+logger.addHandler(_console_handler)
 
 
 def sanitize_filename(raw_name: str) -> str:
