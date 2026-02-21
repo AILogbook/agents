@@ -18,18 +18,18 @@
             </div>
         </div>
         <ul class="nav-list">
-            <li class="nav-item active" data-panel="split-odd-even">
+            <li class="nav-item active" data-panel="a3-to-a4">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/>
+                </svg>
+                <span>A3 转 A4</span>
+            </li>
+            <li class="nav-item" data-panel="split-odd-even">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
                     <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
                 </svg>
                 <span>奇偶页拆分</span>
-            </li>
-            <li class="nav-item" data-panel="a3-to-a4">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="3" width="20" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/>
-                </svg>
-                <span>A3 转 A4</span>
             </li>
             <li class="nav-item disabled">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -42,7 +42,7 @@
 
     <main class="content">
         <!-- 奇偶页拆分面板 -->
-        <section id="panel-split-odd-even" class="panel active">
+        <section id="panel-split-odd-even" class="panel">
             <div class="panel-header">
                 <h1>PDF 奇偶页拆分</h1>
                 <p class="subtitle">上传 PDF 文件，将其按奇数页和偶数页拆分为两个独立文件</p>
@@ -120,7 +120,7 @@
         </section>
 
         <!-- A3 转 A4 面板 -->
-        <section id="panel-a3-to-a4" class="panel">
+        <section id="panel-a3-to-a4" class="panel active">
             <div class="panel-header">
                 <h1>A3 转 A4 切分</h1>
                 <p class="subtitle">将 A3 尺寸的 PDF 页面沿中线切分为两个 A4 页面</p>
